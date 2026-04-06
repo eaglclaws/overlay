@@ -1,0 +1,16 @@
+# Optional: HTTP probe that restarts the API if GET / fails.
+# Requires curl. Install next to overlay-api.service, then enable the timer.
+#
+#   sudo install -m 644 deploy/overlay-api-health.service /etc/systemd/system/
+#   sudo install -m 644 deploy/overlay-api-health.timer /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now overlay-api-health.timer
+
+[Unit]
+Description=Probe overlay API (restart overlay-api on failure)
+After=network-online.target overlay-api.service
+
+[Service]
+Type=oneshot
+# Local check only; change URL if you bind elsewhere
+ExecStart=/usr/bin/sh -c '/usr/bin/curl -fsS --connect-timeout 2 --max-time 10 http://127.0.0.1:8000/ >/dev/null || /usr/bin/systemctl restart overlay-api.service'

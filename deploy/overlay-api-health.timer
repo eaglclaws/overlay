@@ -1,0 +1,13 @@
+[Unit]
+Description=Run overlay API health probe periodically
+Requires=overlay-api.service
+
+[Timer]
+# First probe 90s after boot, then every minute (gives the app time to listen)
+OnBootSec=90
+OnUnitActiveSec=1min
+AccuracySec=30s
+Persistent=true
+
+[Install]
+WantedBy=timers.target
