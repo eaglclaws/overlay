@@ -3,7 +3,8 @@
 #   sudo systemctl daemon-reload
 #   sudo systemctl enable --now overlay-api.service
 #
-# Adjust User, Group, WorkingDirectory, and ExecStart to match your install (e.g. /opt/fastapi-app).
+# Adjust User, Group, paths in ExecStart to match your install (e.g. /opt/fastapi-app).
+# No WorkingDirectory: avoids systemd 200/CHDIR if the service user cannot chdir there at boot.
 
 [Unit]
 Description=Logo overlay FastAPI (uvicorn)
@@ -14,11 +15,10 @@ Wants=network-online.target
 Type=simple
 User=overlay
 Group=overlay
-WorkingDirectory=/opt/fastapi-app
 Environment=PATH=/opt/fastapi-app/.venv/bin:/usr/local/bin:/usr/bin
-# Run via /bin/sh + exec so a missing venv binary fails with a shell error, not systemd 203/EXEC.
-# Use .venv/bin/python (not python3): some venvs have no python3 symlink.
-ExecStart=/bin/sh -c 'exec /opt/fastapi-app/.venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000'
+# --app-dir sets where main.py lives (replaces WorkingDirectory for uvicorn).
+# Run via /bin/sh + exec so a missing venv binary fails clearly.
+ExecStart=/bin/sh -c 'exec /opt/fastapi-app/.venv/bin/python -m uvicorn main:app --app-dir /opt/fastapi-app --host 0.0.0.0 --port 8000'
 Restart=always
 RestartSec=5
 
