@@ -15,17 +15,14 @@ app = FastAPI(title="overlay-api", version="1.0.0")
 
 
 def _parse_assignments(raw: str) -> list[tuple[str, int, int]]:
-    """Parse JSON into paint order: list of (basename, x, y). Same file may appear more than once."""
+    """Parse coordinates JSON into paint order: list of (basename, x, y). Same file may repeat."""
     try:
         data: Any = json.loads(raw)
     except json.JSONDecodeError as e:
         raise HTTPException(status_code=400, detail=f"Invalid JSON for coordinates: {e}") from e
 
     if not isinstance(data, list):
-        raise HTTPException(
-            status_code=400,
-            detail="coordinates must be a JSON array",
-        )
+        raise HTTPException(status_code=400, detail="coordinates must be a JSON array")
 
     out: list[tuple[str, int, int]] = []
     for i, item in enumerate(data):
@@ -85,7 +82,7 @@ async def root() -> dict[str, str]:
     return {"service": "overlay-api", "docs": "/docs"}
 
 
-@app.post("/create-overlay/")
+@app.post("/create-overlay")
 async def create_overlay(
     coordinates: Annotated[
         str,
@@ -93,19 +90,15 @@ async def create_overlay(
             description=(
                 'JSON array of { "file": "<filename>", "x": int, "y": int } — '
                 '"file" is the upload basename (must match a part\'s filename). '
-                "Array order is paint order (first = bottom). Same file may repeat for multiple positions."
-            )
+                "Order is paint order (first = bottom)."
+            ),
         ),
     ],
-    logos: Annotated[
-        list[UploadFile],
-        File(description="Logo images; each part's filename must match a coordinates[].file"),
-    ],
+    logos: Annotated[list[UploadFile], File()],
 ) -> Response:
     """
     Build a transparent RGBA PNG sized to the tight bounding box of all logos at their
     coordinates (top-left of each image). Placements are keyed by filename, not multipart order.
-    Paint order follows the coordinates array (first = bottom, last = top).
     """
     assignments = _parse_assignments(coordinates)
     if not assignments:
