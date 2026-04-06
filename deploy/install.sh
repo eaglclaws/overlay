@@ -59,7 +59,7 @@ have_cmd() { command -v "$1" >/dev/null 2>&1; }
 
 install_packages() {
   if have_cmd dnf; then
-    dnf install -y python3 python3-pip python3-venv curl >/dev/null
+    dnf install -y python3 python3-pip curl >/dev/null
   elif have_cmd yum; then
     yum install -y python3 python3-pip python3-venv curl >/dev/null
   elif have_cmd apt-get; then
