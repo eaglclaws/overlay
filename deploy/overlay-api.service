@@ -21,8 +21,6 @@ Environment=PATH=/opt/fastapi-app/.venv/bin:/usr/local/bin:/usr/bin
 ExecStart=/opt/fastapi-app/.venv/bin/python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
 Restart=always
 RestartSec=5
-# Disable start burst limiting so systemd keeps trying after repeated crashes (see systemd.service(5))
-StartLimitIntervalSec=0
 
 KillMode=mixed
 TimeoutStopSec=30
