@@ -16,9 +16,9 @@ User=overlay
 Group=overlay
 WorkingDirectory=/opt/fastapi-app
 Environment=PATH=/opt/fastapi-app/.venv/bin:/usr/local/bin:/usr/bin
-# Use python -m uvicorn (not the uvicorn console script) to avoid systemd 203/EXEC
-# when the wrapper shebang or SELinux blocks the script.
-ExecStart=/opt/fastapi-app/.venv/bin/python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
+# Run via /bin/sh + exec so a missing venv binary fails with a shell error, not systemd 203/EXEC.
+# Use .venv/bin/python (not python3): some venvs have no python3 symlink.
+ExecStart=/bin/sh -c 'exec /opt/fastapi-app/.venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000'
 Restart=always
 RestartSec=5
 
