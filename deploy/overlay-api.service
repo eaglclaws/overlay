@@ -16,7 +16,9 @@ User=overlay
 Group=overlay
 WorkingDirectory=/opt/fastapi-app
 Environment=PATH=/opt/fastapi-app/.venv/bin:/usr/local/bin:/usr/bin
-ExecStart=/opt/fastapi-app/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+# Use python -m uvicorn (not the uvicorn console script) to avoid systemd 203/EXEC
+# when the wrapper shebang or SELinux blocks the script.
+ExecStart=/opt/fastapi-app/.venv/bin/python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
 Restart=always
 RestartSec=5
 # Disable start burst limiting so systemd keeps trying after repeated crashes (see systemd.service(5))
