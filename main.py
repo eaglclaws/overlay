@@ -11,7 +11,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from PIL import Image
 
-app = FastAPI(title="Logo Overlay", version="1.0.0")
+app = FastAPI(title="overlay-api", version="1.0.0")
 
 
 def _parse_assignments(raw: str) -> list[tuple[str, int, int]]:
@@ -82,7 +82,7 @@ def _index_uploads_by_basename(logos: list[UploadFile]) -> dict[str, UploadFile]
 
 @app.get("/")
 async def root() -> dict[str, str]:
-    return {"service": "logo-overlay", "docs": "/docs"}
+    return {"service": "overlay-api", "docs": "/docs"}
 
 
 @app.post("/create-overlay/")

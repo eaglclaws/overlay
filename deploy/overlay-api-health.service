@@ -7,7 +7,7 @@
 #   sudo systemctl enable --now overlay-api-health.timer
 
 [Unit]
-Description=Probe overlay API (restart overlay-api on failure)
+Description=overlay-api health probe (restart service on failure)
 After=network-online.target overlay-api.service
 
 [Service]

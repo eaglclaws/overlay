@@ -4,9 +4,9 @@
 
 set -euo pipefail
 
-DEFAULT_PREFIX=/opt/overlay-app
-DEFAULT_USER=overlay
-DEFAULT_GROUP=overlay
+DEFAULT_PREFIX=/opt/overlay-api
+DEFAULT_USER=overlay-api
+DEFAULT_GROUP=overlay-api
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # App root = parent of deploy/ when running from an extracted tree
@@ -33,9 +33,9 @@ requirements.txt, and deploy/ (either at archive root or inside one top-level
 directory). If omitted, the directory above this script is used (../).
 
 Options:
-  --prefix DIR     Install root (default: /opt/overlay-app)
-  --user NAME      Unprivileged user to run the service (default: overlay)
-  --group NAME     Group (default: overlay)
+  --prefix DIR     Install root (default: /opt/overlay-api)
+  --user NAME      Unprivileged user to run the service (default: overlay-api)
+  --group NAME     Group (default: overlay-api)
   --with-health-timer
                    Enable overlay-api-health.timer (needs curl)
   --open-firewall  Open TCP 8000 in firewalld if active (firewall-cmd)
@@ -59,12 +59,12 @@ have_cmd() { command -v "$1" >/dev/null 2>&1; }
 
 install_packages() {
   if have_cmd dnf; then
-    dnf install -y python3 python3-pip curl >/dev/null
+    dnf install -y python3 python3-pip python3-venv curl >/dev/null
   elif have_cmd yum; then
-    yum install -y python3 python3-pip curl >/dev/null
+    yum install -y python3 python3-pip python3-venv curl >/dev/null
   elif have_cmd apt-get; then
     apt-get update -qq
-    DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-pip curl >/dev/null
+    DEBIAN_FRONTEND=noninteractive apt-get install -y python3 python3-venv python3-pip curl >/dev/null
   else
     die "install python3, pip, and curl, then re-run"
   fi
@@ -128,8 +128,9 @@ resolve_app_root() {
 
 render_unit() {
   local src="$1"
+  # Must match paths in deploy/*.service (placeholder before install)
   sed \
-    -e "s#/opt/overlay-app#$INSTALL_PREFIX#g" \
+    -e "s#/opt/overlay-api#$INSTALL_PREFIX#g" \
     -e "s/^User=.*/User=$RUN_USER/" \
     -e "s/^Group=.*/Group=$RUN_GROUP/" \
     "$src"
