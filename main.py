@@ -24,6 +24,8 @@ FILTER_PAYLOAD = {
     "command": "url",
     "target": "1.stream_overlay_top_left",
 }
+CANVAS_W = 1920
+CANVAS_H = 1080
 
 
 def _parse_assignments(raw: str) -> list[tuple[str, int, int]]:
@@ -160,25 +162,31 @@ async def create_overlay(
         logo = get_logo_rgba(basename)
         loaded.append((logo, (x, y)))
 
-    min_x = min(x for _, (x, _) in loaded)
-    min_y = min(y for _, (_, y) in loaded)
-    max_x = max(x + im.width for im, (x, _) in loaded)
-    max_y = max(y + im.height for im, (_, y) in loaded)
+    base = Image.new("RGBA", (CANVAS_W, CANVAS_H), (0, 0, 0, 0))
 
-    canvas_w = max_x - min_x
-    canvas_h = max_y - min_y
-    if canvas_w < 1 or canvas_h < 1:
-        raise HTTPException(status_code=400, detail="Computed canvas has invalid dimensions")
-    if canvas_w > 16384 or canvas_h > 16384:
-        raise HTTPException(status_code=400, detail="Resulting image exceeds maximum size (16384 px)")
+    def paste_clipped(dst: Image.Image, src: Image.Image, x: int, y: int) -> None:
+        # Compute intersection of src placed at (x,y) with dst bounds.
+        dst_w, dst_h = dst.size
+        src_w, src_h = src.size
 
-    base = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
+        left = max(x, 0)
+        top = max(y, 0)
+        right = min(x + src_w, dst_w)
+        bottom = min(y + src_h, dst_h)
+        if right <= left or bottom <= top:
+            return  # fully out of bounds
+
+        crop_left = left - x
+        crop_top = top - y
+        crop_right = crop_left + (right - left)
+        crop_bottom = crop_top + (bottom - top)
+        cropped = src.crop((crop_left, crop_top, crop_right, crop_bottom))
+
+        # Paste using its alpha as mask.
+        dst.paste(cropped, (left, top), cropped)
+
     for logo, (x, y) in loaded:
-        px = x - min_x
-        py = y - min_y
-        layer = Image.new("RGBA", (canvas_w, canvas_h), (0, 0, 0, 0))
-        layer.paste(logo, (px, py), logo)
-        base = Image.alpha_composite(base, layer)
+        paste_clipped(base, logo, x, y)
 
     buf = io.BytesIO()
     base.save(buf, format="PNG")
