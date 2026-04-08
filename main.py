@@ -5,6 +5,10 @@ from __future__ import annotations
 import io
 import json
 import os
+import asyncio
+import tempfile
+import urllib.error
+import urllib.request
 from typing import Annotated, Any
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -12,6 +16,14 @@ from fastapi.responses import Response
 from PIL import Image
 
 app = FastAPI(title="overlay-api", version="1.0.0")
+
+OVERLAY_PNG_PATH = "/data/overlay-root/overlay.png"
+FILTER_API_URL = "http://127.0.0.1:8081/api/streams/live.stream/send-to-filter"
+FILTER_PAYLOAD = {
+    "arg": f"file://{OVERLAY_PNG_PATH}",
+    "command": "url",
+    "target": "1.stream_overlay_top_left",
+}
 
 
 def _parse_assignments(raw: str) -> list[tuple[str, int, int]]:
@@ -170,4 +182,50 @@ async def create_overlay(
 
     buf = io.BytesIO()
     base.save(buf, format="PNG")
-    return Response(content=buf.getvalue(), media_type="image/png")
+    png_bytes = buf.getvalue()
+
+    async def write_overlay_file() -> None:
+        os.makedirs(os.path.dirname(OVERLAY_PNG_PATH), exist_ok=True)
+        directory = os.path.dirname(OVERLAY_PNG_PATH) or "."
+        fd, tmp_path = tempfile.mkstemp(prefix=".overlay-", suffix=".png", dir=directory)
+        try:
+            with os.fdopen(fd, "wb") as f:
+                f.write(png_bytes)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_path, OVERLAY_PNG_PATH)
+        finally:
+            try:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+            except OSError:
+                pass
+
+    def notify_filter_api() -> None:
+        data = json.dumps(FILTER_PAYLOAD).encode("utf-8")
+        req = urllib.request.Request(
+            FILTER_API_URL,
+            method="PUT",
+            data=data,
+            headers={
+                "Accept": "application/json, */*;q=0.5",
+                "Content-Type": "application/json",
+            },
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            if resp.status < 200 or resp.status >= 300:
+                raise RuntimeError(f"filter API returned HTTP {resp.status}")
+
+    try:
+        await write_overlay_file()
+    except OSError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to write overlay PNG: {e}") from e
+
+    try:
+        await asyncio.to_thread(notify_filter_api)
+    except urllib.error.URLError as e:
+        raise HTTPException(status_code=502, detail=f"Failed to call filter API: {e}") from e
+    except RuntimeError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+    return Response(content=png_bytes, media_type="image/png")
